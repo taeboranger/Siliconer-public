@@ -1,0 +1,30 @@
+{
+  "pollSeconds": 300,
+  "evidenceTtlSeconds": 900,
+  "osv": false,
+  "integrations": [
+    {
+      "id": "home-github", "name": "홈서버 GitHub", "kind": "github",
+      "appId": "REPLACE_APP_ID", "installationId": 1,
+      "privateKeyFileEnv": "GITHUB_APP_PRIVATE_KEY_FILE", "webhookSecretEnv": "GITHUB_WEBHOOK_SECRET",
+      "repositories": [
+        { "name": "example-owner/ExampleApp", "kind": "source", "ref": "main" },
+        { "name": "example-owner/ExampleApp-config", "kind": "gitops", "ref": "main" }
+      ],
+      "sourcePolicies": [
+        { "repository": "example-owner/ExampleApp", "allowCodeEgress": false, "allowedPaths": ["package.json", "pom.xml", "go.mod", "requirements.txt", "pyproject.toml", "Dockerfile"], "allowedPathPrefixes": ["src/", "app/", "config/"], "packageManifestPath": "package.json" }
+      ]
+    },
+    {
+      "id": "home-argocd", "name": "홈서버 Argo CD", "kind": "argocd",
+      "url": "https://argocd.example.invalid", "tokenEnv": "ARGOCD_AUTH_TOKEN", "projects": ["default"],
+      "applications": ["argocd/example-app-prod"],
+      "githubIntegrationId": "home-github", "clusterId": "home", "environment": "prod"
+    },
+    {
+      "id": "home-ci", "name": "CI SBOM 인입", "kind": "ingest", "tokenEnv": "SILICONER_INGEST_TOKEN",
+      "repositories": ["example-owner/ExampleApp"], "githubIntegrationId": "home-github",
+      "workflowPath": ".github/workflows/deploy.yml", "allowedRefs": ["main"], "publicKeyFileEnv": "SILICONER_CI_PUBLIC_KEY_FILE"
+    }
+  ]
+}

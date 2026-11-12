@@ -1,0 +1,12 @@
+import fs from 'node:fs/promises';
+const [file]=process.argv.slice(2);
+const url=process.env.SILICONER_INGEST_URL;
+const token=process.env.SILICONER_INGEST_TOKEN;
+if(!file || !url || !token || new URL(url).protocol!=='https:') throw new Error('Provide an envelope file and HTTPS ingest URL/token via environment');
+const payload=await fs.readFile(file,'utf8');
+if(Buffer.byteLength(payload)>10*1024*1024) throw new Error('Envelope exceeds 10MiB');
+const response=await fetch(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(30000),headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:payload});
+if(!response.ok) throw new Error(`SBOM upload failed: HTTP ${response.status}`);
+const result=await response.json();
+if(result.provenance!=='verified') throw new Error('SBOM accepted but provenance is unverified; check signing key and completed workflow identity.');
+console.log(`Verified SBOM accepted: ${result.id}`);

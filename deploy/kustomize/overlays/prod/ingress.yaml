@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: siliconer
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [siliconer.example.invalid]
+      secretName: siliconer-tls
+  rules:
+    - host: siliconer.example.invalid
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: siliconer-api, port: { name: http } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: siliconer-web, port: { name: http } } }

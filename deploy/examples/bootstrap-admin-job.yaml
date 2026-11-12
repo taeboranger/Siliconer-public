@@ -1,0 +1,26 @@
+# One-time administrator action. Not part of the automatically synced resources.
+# Provision siliconer-bootstrap Secret with email/password via your secret manager.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: siliconer-bootstrap-admin
+  namespace: siliconer-prod
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 120
+  template:
+    spec:
+      serviceAccountName: siliconer-migrator
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: bootstrap
+          image: example-owner/siliconer-api-prod:REPLACE_WITH_VERIFIED_TAG_OR_DIGEST
+          command: [node, dist/cli.js, admin]
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          env:
+            - { name: SILICONER_BASE_URL, value: https://siliconer.example.invalid }
+            - { name: SILICONER_DATABASE_URL, valueFrom: { secretKeyRef: { name: siliconer-migrator-secret, key: database-url } } }
+            - { name: SILICONER_ADMIN_EMAIL, valueFrom: { secretKeyRef: { name: siliconer-bootstrap, key: email } } }
+            - { name: SILICONER_ADMIN_PASSWORD, valueFrom: { secretKeyRef: { name: siliconer-bootstrap, key: password } } }

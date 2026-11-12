@@ -1,0 +1,48 @@
+{
+  "name": "siliconer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "demo": "node scripts/dev.mjs --demo",
+    "api:dev": "tsx watch apps/api/src/main.ts",
+    "worker:dev": "tsx apps/api/src/worker.ts",
+    "db:migrate": "tsx apps/api/src/cli.ts migrate",
+    "admin:create": "tsx apps/api/src/cli.ts admin",
+    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
+    "test:containers": "node scripts/smoke-containers.mjs",
+    "typecheck": "tsc --noEmit && pnpm --filter @siliconer/web typecheck",
+    "build:server": "node scripts/build.mjs",
+    "build": "pnpm build:server && pnpm --filter @siliconer/web build",
+    "start": "node dist/main.js",
+    "worker": "node dist/worker.js",
+    "check": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/rate-limit": "^10.3.0",
+    "@openai/codex-sdk": "^0.167.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.12.8",
+    "jose": "^6.1.3",
+    "pg": "^8.16.3",
+    "semver": "^7.7.3",
+    "yaml": "^2.8.2",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@types/node": "^24.10.0",
+    "@types/pg": "^8.15.6",
+    "@types/semver": "^7.7.1",
+    "esbuild": "^0.27.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

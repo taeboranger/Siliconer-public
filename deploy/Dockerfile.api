@@ -1,0 +1,22 @@
+FROM node:24-alpine AS build
+WORKDIR /app
+RUN npm install -g pnpm@11.25.0
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/package.json
+RUN pnpm install --frozen-lockfile
+COPY tsconfig.json ./
+COPY packages packages
+COPY apps/api apps/api
+COPY scripts/build.mjs scripts/build.mjs
+RUN pnpm build:server && pnpm --filter siliconer deploy --prod --legacy /out
+
+FROM node:24-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production SILICONER_HOST=0.0.0.0 SILICONER_PORT=4100
+COPY --from=build /out/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./package.json
+RUN node --input-type=module -e 'import {createRequire} from "node:module"; import {dirname,join} from "node:path"; import {symlinkSync} from "node:fs"; const sdk=createRequire(import.meta.resolve("@openai/codex-sdk")); symlinkSync(join(dirname(sdk.resolve("@openai/codex/package.json")),"bin/codex.js"),"/usr/local/bin/codex");'
+USER 10001:10001
+EXPOSE 4100
+CMD ["node", "dist/main.js"]

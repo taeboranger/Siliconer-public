@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/.next
+.data
+.git
+.env
+.env.*
+*.pem
+*.key
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+.playwright-mcp
+dist
+test-results

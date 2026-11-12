@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: siliconer-migrate
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: siliconer-migrator
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: migrate
+          image: example-owner/siliconer-api-prod:initial
+          command: [node, dist/cli.js, migrate]
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          env:
+            - { name: SILICONER_BASE_URL, valueFrom: { configMapKeyRef: { name: siliconer-settings, key: SILICONER_BASE_URL } } }
+            - { name: SILICONER_DATABASE_URL, valueFrom: { secretKeyRef: { name: siliconer-migrator-secret, key: database-url } } }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: "1", memory: 512Mi } }

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: siliconer-worker
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels: { app: siliconer-worker }
+  template:
+    metadata:
+      labels: { app: siliconer-worker }
+    spec:
+      serviceAccountName: siliconer-worker
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 90
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: worker
+          image: example-owner/siliconer-api-prod:initial
+          command: [node, dist/worker.js]
+          securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+          envFrom: [{ configMapRef: { name: siliconer-settings } }]
+          env:
+            - { name: SILICONER_CONFIG_FILE, value: /app/config/integrations.json }
+            - { name: SILICONER_DATABASE_URL, valueFrom: { secretKeyRef: { name: siliconer-worker-secret, key: database-url } } }
+            - { name: OPENAI_API_KEY, valueFrom: { secretKeyRef: { name: siliconer-worker-secret, key: openai-api-key, optional: true } } }
+            - { name: SILICONER_NOTIFICATION_URL, valueFrom: { secretKeyRef: { name: siliconer-worker-secret, key: notification-url, optional: true } } }
+          volumeMounts: [{ name: connectors, mountPath: /app/config, readOnly: true }, { name: tmp, mountPath: /tmp }]
+          resources: { requests: { cpu: 100m, memory: 192Mi }, limits: { cpu: "1", memory: 768Mi } }
+      volumes:
+        - { name: connectors, configMap: { name: siliconer-connectors } }
+        - { name: tmp, emptyDir: { sizeLimit: 64Mi } }

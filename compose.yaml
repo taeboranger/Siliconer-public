@@ -1,0 +1,75 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: siliconer
+      POSTGRES_PASSWORD: ${SILICONER_DB_PASSWORD:-siliconer-dev-only}
+      POSTGRES_DB: siliconer
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siliconer -d siliconer"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    profiles: [app]
+    image: siliconer-api:local
+    build: { context: ., dockerfile: deploy/Dockerfile.api }
+    command: [node, dist/cli.js, migrate]
+    environment:
+      NODE_ENV: development
+      SILICONER_BASE_URL: http://localhost:3005
+      SILICONER_DATABASE_URL: postgresql://siliconer:${SILICONER_DB_PASSWORD:-siliconer-dev-only}@db:5432/siliconer
+    depends_on:
+      db: { condition: service_healthy }
+  siliconer-api:
+    profiles: [app]
+    image: siliconer-api:local
+    build: { context: ., dockerfile: deploy/Dockerfile.api }
+    environment:
+      NODE_ENV: development
+      SILICONER_BASE_URL: http://localhost:3005
+      SILICONER_DATABASE_URL: postgresql://siliconer:${SILICONER_DB_PASSWORD:-siliconer-dev-only}@db:5432/siliconer
+      SILICONER_CONFIG_FILE: /app/config/integrations.json
+      SILICONER_LLM_ENABLED: "false"
+    ports: ["127.0.0.1:4105:4100"]
+    volumes: ["./config/empty.json:/app/config/integrations.json:ro"]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4100/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  worker:
+    profiles: [app]
+    image: siliconer-api:local
+    command: [node, dist/worker.js]
+    environment:
+      NODE_ENV: development
+      SILICONER_BASE_URL: http://localhost:3005
+      SILICONER_DATABASE_URL: postgresql://siliconer:${SILICONER_DB_PASSWORD:-siliconer-dev-only}@db:5432/siliconer
+      SILICONER_CONFIG_FILE: /app/config/integrations.json
+      SILICONER_LLM_ENABLED: "false"
+    volumes: ["./config/empty.json:/app/config/integrations.json:ro"]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+  web:
+    profiles: [app]
+    image: siliconer-web:local
+    build: { context: ., dockerfile: deploy/Dockerfile.web }
+    ports: ["127.0.0.1:3005:3000"]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on:
+      siliconer-api: { condition: service_healthy }
+volumes:
+  postgres-data:
